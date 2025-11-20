@@ -21,6 +21,19 @@ from bpy_extras.io_utils import ImportHelper
 from bpy.props import StringProperty, BoolProperty, EnumProperty, CollectionProperty
 from bpy.types import Operator
 
+# Call this function and concatenate the data types into one string in the struct.unpack functions
+def endian_sel(bool: big = False):
+	if big == True:
+		return ">"
+	else:
+		return "<"
+
+# Turn this into a UI checkbox or detection function or similar, and return a bool for if it's big endian
+def function_for_detecting_big_endianness():
+	return True
+
+# Call it where needed
+is_big_endian = function_for_detecting_big_endianness()
 
 class SanzaruGEOB:
     def __init__(self, file):
@@ -257,11 +270,11 @@ class SanzaruSubmesh:
             invalid_format("MVTX", file.tell(), magic)
         mvtx_length = struct.unpack("<I", file.read(4))[0]
         
-        for _ in range(self.vertex.count):
-            vertex_pos = mathutils.Vector(struct.unpack(">eee", file.read(6))) #reverse endian for Vita
+        for _ in range(self.vertex.count):				
+            vertex_pos = mathutils.Vector(struct.unpack(endian_sel(big=is_big_endian) + "eee", file.read(6))) #concatenate the strings for the first argument, should result in either "<eee" or ">eee" 
             #vertex_pos *= self.vertex_scale # Scale applied to mesh to apply non-destructively
             vertex_color = struct.unpack("<BBBB", file.read(4)) 
-            uv_pos = struct.unpack(">ee", file.read(4)) #reverse endian for Vita
+            uv_pos = struct.unpack(endian_sel(big=is_big_endian) + "ee", file.read(4)) #reverse endian for Vita
             uv_pos = (uv_pos[0], -uv_pos[1] + 1) # Invert UVs
             vertex_nrm = mathutils.Vector((0.0,0.0,0.0))#struct.unpack(">bbb", file.read(3)))
             if spare_bytes >=18:
@@ -292,7 +305,7 @@ class SanzaruSubmesh:
         midx_length = struct.unpack("<I", file.read(4))[0]
         
         for _ in range(self.face.count):
-            face = struct.unpack(">HHH", file.read(6)) #reverse endian for Vita
+            face = struct.unpack(endian_sel(big=is_big_endian) + "HHH", file.read(6)) #reverse endian for Vita
             self.face.idx.append(face)
         
         if self.face.count % 2:
@@ -633,3 +646,4 @@ def unregister():
 
 if __name__ == "__main__":
     register()
+
